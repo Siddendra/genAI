@@ -7,6 +7,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 public class SpringaiGpt4oDemoApplication {
 
 	public static void main(String[] args) {
+
 		SpringApplication.run(SpringaiGpt4oDemoApplication.class, args);
 	}
 

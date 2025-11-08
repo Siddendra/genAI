@@ -1,40 +1,36 @@
-from langchain.llms import OpenAI
-from langchain.prompts import PromptTemplate
-from langchain.chains import LLMChain
-from langchain.chains import SequentialChain
-from secret_key import openapi_key
-
+from secret_key import OPENAI_API_KEY
 import os
-os.environ['OPENAI_API_KEY'] = openapi_key
 
-llm = OpenAI(temperature=0.7)
+from langchain_openai import ChatOpenAI
+from langchain_core.prompts import PromptTemplate
+from langchain_core.output_parsers import StrOutputParser
 
-def generate_restaurant_name_and_items(cuisine):
-    # Chain 1: Restaurant Name
-    prompt_template_name = PromptTemplate(
-        input_variables=['cuisine'],
-        template="I want to open a restaurant for {cuisine} food. Suggest a fancy name for this."
-    )
+# --- Setup ---
+os.environ["OPENAI_API_KEY"] = OPENAI_API_KEY.strip()
 
-    name_chain = LLMChain(llm=llm, prompt=prompt_template_name, output_key="restaurant_name")
+llm = ChatOpenAI(model="gpt-4o-mini", temperature=0.9)
+to_str = StrOutputParser()
 
-    # Chain 2: Menu Items
-    prompt_template_items = PromptTemplate(
-        input_variables=['restaurant_name'],
-        template="""Suggest some menu items for {restaurant_name}. Return it as a comma separated string"""
-    )
+# --- Prompts ---
+prompt_template_name = PromptTemplate(
+    input_variables=["cuisine"],
+    template="I want to open a restaurant for {cuisine} food. Suggest a fancy name for this."
+)
 
-    food_items_chain = LLMChain(llm=llm, prompt=prompt_template_items, output_key="menu_items")
+prompt_template_items = PromptTemplate(
+    input_variables=["restaurant_name"],
+    template="Suggest some menu items for {restaurant_name}. Return it as a comma separated string."
+)
 
-    chain = SequentialChain(
-        chains=[name_chain, food_items_chain],
-        input_variables=['cuisine'],
-        output_variables=['restaurant_name', "menu_items"]
-    )
+# --- Chains (LCEL style) ---
+name_chain = prompt_template_name | llm | to_str
+items_chain = prompt_template_items | llm | to_str
 
-    response = chain({'cuisine': cuisine})
-
-    return response
+def generate_restaurant_name_and_items(cuisine: str):
+    restaurant_name = name_chain.invoke({"cuisine": cuisine}).strip()
+    menu_items = items_chain.invoke({"restaurant_name": restaurant_name}).strip()
+    return {"restaurant_name": restaurant_name, "menu_items": menu_items}
 
 if __name__ == "__main__":
-    print(generate_restaurant_name_and_items("Italian"))
+    result = generate_restaurant_name_and_items("Italian")
+    print(result)
